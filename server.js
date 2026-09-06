@@ -4,6 +4,7 @@ import { inspectUrl, buildEvidenceLedger, compareEvidence } from './evidence.js'
 import { createReport, getReport, reportHtml } from './reports.js';
 
 const port = Number(process.env.PORT || 8787);
+export function healthResponse() { return { service: 'signalshield', status: 'ok', version: '0.1.0' }; }
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>SignalShield</title>
 <style>
@@ -29,6 +30,7 @@ export function inspectClaim(claim) {
 
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
+  if (req.method === 'GET' && u.pathname === '/health') { res.writeHead(200, {'content-type':'application/json'}); return res.end(JSON.stringify(healthResponse())); }
   if (req.method === 'GET' && u.pathname === '/') { res.writeHead(200, {'content-type':'text/html; charset=utf-8'}); return res.end(html); }
   if (req.method === 'GET' && u.pathname.startsWith('/report/')) {
     const report = getReport(u.pathname.slice('/report/'.length));
