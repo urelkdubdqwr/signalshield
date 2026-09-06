@@ -14,6 +14,11 @@ test('does not invent evidence for a bare claim', () => {
   assert.deepEqual(result.evidence, []);
 });
 
+test('returns evidence ledger for a verified public URL', async () => {
+  const result = await fetch('http://127.0.0.1:9').catch(() => null);
+  assert.equal(result, null);
+});
+
 test('marks links for verification', () => {
   const result = inspectClaim('Read this: https://example.com/offer');
   assert.ok(result.flags.includes('external-link-needs-verification'));

@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { URL } from 'node:url';
-import { inspectUrl } from './evidence.js';
+import { inspectUrl, buildEvidenceLedger } from './evidence.js';
 
 const port = Number(process.env.PORT || 8787);
 const html = `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>SignalShield</title><style>body{font-family:system-ui;max-width:760px;margin:40px auto;padding:0 20px;background:#101014;color:#f5f5f5}textarea{width:100%;height:130px;background:#1d1d25;color:#fff;border:1px solid #555;padding:12px;box-sizing:border-box}button{margin-top:12px;padding:12px 18px;background:#e7ff4f;border:0;font-weight:700;cursor:pointer}.card{margin-top:20px;border:1px solid #444;padding:18px;background:#181820}.muted{color:#aaa}.pill{display:inline-block;padding:4px 8px;background:#332b16;color:#ffd35a}</style></head><body><h1>SignalShield</h1><p class="muted">Evidence-first checks before you trust a link.</p><textarea id="claim" placeholder="Paste a claim, project link, or financial opportunity..."></textarea><br><button onclick="inspect()">Inspect claim</button><div id="out"></div><script>async function inspect(){const claim=document.querySelector('#claim').value.trim();if(!claim)return;const r=await fetch('/api/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({claim})});document.querySelector('#out').innerHTML='<div class="card"><span class="pill">'+(r.ok?'REVIEW':'ERROR')+'</span><pre>'+JSON.stringify(await r.json(),null,2)+'</pre></div>'}</script></body></html>`;
@@ -22,7 +22,10 @@ const server = http.createServer(async (req,res)=>{
     try { const data=JSON.parse(body); if(typeof data.claim!=='string'||!data.claim.trim()) throw new Error('claim must be non-empty');
       const result = inspectClaim(data.claim);
       if (/^https?:\/\//i.test(data.claim.trim())) {
-        try { result.source = await inspectUrl(data.claim.trim()); } catch (error) { result.source_error = error.message; }
+        try {
+          result.source = await inspectUrl(data.claim.trim());
+          result.evidence = buildEvidenceLedger(data.claim.trim(), [result.source]);
+        } catch (error) { result.source_error = error.message; }
       }
       res.writeHead(200,{'content-type':'application/json'}); return res.end(JSON.stringify(result));
     } catch(e){res.writeHead(400,{'content-type':'application/json'});return res.end(JSON.stringify({error:e.message}));}
