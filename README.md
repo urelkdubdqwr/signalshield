@@ -18,6 +18,10 @@ SignalShield is an evidence-first trust layer for financial, Web3, and online op
 npm start
 ```
 
+## Deploy on Render
+
+This repo includes `render.yaml`. In Render, choose **New → Blueprint**, connect the GitHub repo, and deploy the `signalshield` web service. The service exposes `/health` for readiness checks. Reports use local disk persistence for the demo; attach a persistent disk or managed database before production use.
+
 In another terminal:
 
 ```bash
