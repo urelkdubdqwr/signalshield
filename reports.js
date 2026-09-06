@@ -1,17 +1,34 @@
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
+const storePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'reports.json');
 const reports = new Map();
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
+function load() {
+  try {
+    const data = JSON.parse(fs.readFileSync(storePath, 'utf8'));
+    for (const [id, report] of Object.entries(data)) reports.set(id, report);
+  } catch (error) {
+    if (error.code !== 'ENOENT') throw error;
+  }
+}
+function persist() {
+  fs.mkdirSync(path.dirname(storePath), { recursive: true });
+  const temp = `${storePath}.tmp`;
+  fs.writeFileSync(temp, JSON.stringify(Object.fromEntries(reports), null, 2), { mode: 0o600 });
+  fs.renameSync(temp, storePath);
+}
+load();
+
+export function clearReports() { reports.clear(); persist(); }
 export function createReport(report) {
   const id = crypto.createHash('sha256').update(`${Date.now()}:${JSON.stringify(report)}`).digest('hex').slice(0, 12);
-  reports.set(id, report);
-  return id;
+  reports.set(id, report); persist(); return id;
 }
-
-export function getReport(id) {
-  return reports.get(id) || null;
-}
+export function getReport(id) { return reports.get(id) || null; }
 
 export function reportHtml(report) {
   const sources = report.evidence?.sources || [];
