@@ -28,6 +28,10 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node mcp-server
 
 The next slices are source retrieval, evidence ledger, claim-to-source mapping, and a shareable report. The detector intentionally returns `INSUFFICIENT_EVIDENCE` when it has not actually verified a claim; it never pretends an empty evidence list is proof.
 
+## Report API
+
+`POST /api/inspect` accepts `{ "claim": "...", "sources": ["https://..."] }` and returns a report ID. Open `/report/<id>?format=html` for a shareable HTML receipt or `/report/<id>` for JSON. Reports are persisted in a local ignored data file; use a managed database before production deployment.
+
 ## License
 
 MIT
