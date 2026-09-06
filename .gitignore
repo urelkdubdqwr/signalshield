@@ -10,3 +10,8 @@ data/reports.json.tmp
 *.srt
 VIDEO_PLAN.md
 captions*.srt
+__pycache__/
+*.pyc
+key
+identity.pem
+passphrase*
