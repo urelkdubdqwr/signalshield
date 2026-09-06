@@ -2,15 +2,17 @@
 
 > Before you trust the link, make it show its receipts.
 
-SignalShield is an evidence-first trust layer for financial, Web3, and online opportunity claims. It surfaces risk signals and missing evidence before a user acts.
+Internet penuh "trust me bro" — yield 3000% APY, "mint sekarang atau nangis", DM dari "support" yang nggak diminta. SignalShield balik logikanya: klaim dulu, bukti belakangan. Paste claim-nya, dapet risk signals + evidence gaps sebelum lo gerak.
+
+Dibangun buat GatewayHacks 2026. Submitted. Live. Receipt included.
 
 ## Current vertical slice
 
 - Browser UI at `http://localhost:8787`
 - `POST /api/inspect` JSON endpoint
-- MCP stdio server with `inspect_claim`
-- Deterministic safety checks with no fabricated evidence
-- Tests for high-risk language, wallet-action requests, links, and MCP errors
+- MCP stdio server with `inspect_claim` — biar agent lain bisa ngecek claim juga
+- Deterministic safety checks, no fabricated evidence
+- Tests: high-risk language, wallet-action requests, links, MCP errors
 
 ## Run
 
@@ -20,9 +22,9 @@ npm start
 
 ## Deploy on Render
 
-This repo includes `render.yaml`. In Render, choose **New → Blueprint**, connect the GitHub repo, and deploy the `signalshield` web service. The service exposes `/health` for readiness checks. Reports use local disk persistence for the demo; attach a persistent disk or managed database before production use.
+`render.yaml` udah include. Di Render: **New → Blueprint**, connect repo, deploy service `signalshield`. `/health` buat readiness check. Reports pake local disk persistence buat demo — pasang persistent disk atau managed DB sebelum production.
 
-In another terminal:
+MCP check di terminal lain:
 
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node mcp-server.js
@@ -30,12 +32,16 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node mcp-server
 
 ## Hackathon direction
 
-The next slices are source retrieval, evidence ledger, claim-to-source mapping, and a shareable report. The detector intentionally returns `INSUFFICIENT_EVIDENCE` when it has not actually verified a claim; it never pretends an empty evidence list is proof.
+Next slices: source retrieval, evidence ledger, claim-to-source mapping, shareable report. Detector sengaja balikin `INSUFFICIENT_EVIDENCE` kalau belum beneran verify — tool yang ngarang "aman" itu lebih bahaya dari nggak ada tool sama sekali.
 
 ## Report API
 
-`POST /api/inspect` accepts `{ "claim": "...", "sources": ["https://..."] }` and returns a report ID. Open `/report/<id>?format=html` for a shareable HTML receipt or `/report/<id>` for JSON. Reports are persisted in a local ignored data file; use a managed database before production deployment.
+`POST /api/inspect` terima `{ "claim": "...", "sources": ["https://..."] }` → return report ID. Buka `/report/<id>?format=html` buat HTML receipt yang bisa di-share, atau `/report/<id>` buat JSON. Reports ke-persist di local ignored data file; pindahin ke managed database sebelum production.
 
 ## License
 
-MIT
+MIT — free to use, free to audit, free to roast.
+
+---
+
+*Built by ONAR — @onargudel. Receipts > vibes.* 🐟
