@@ -22,15 +22,34 @@ function sentences(text) {
   return text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
 }
 
+function termsFor(claim) {
+  return claim.toLowerCase().split(/[^a-z0-9]+/).filter(term => term.length >= 4);
+}
+
+function sourceMatches(claim, source) {
+  const terms = termsFor(claim);
+  return sentences(source.text).filter(sentence => terms.some(term => sentence.toLowerCase().includes(term)));
+}
+
 export function buildEvidenceLedger(claim, sources) {
-  const terms = claim.toLowerCase().split(/[^a-z0-9]+/).filter(term => term.length >= 4);
   return {
     claim,
     sources: sources.map((source, index) => {
-      const excerpt = sentences(source.text).find(sentence => terms.some(term => sentence.toLowerCase().includes(term))) || null;
+      const excerpt = sourceMatches(claim, source)[0] || null;
       return { id: `source-${index + 1}`, title: source.title, url: source.url, excerpt, quality: excerpt ? 'sourced' : 'unmatched' };
     })
   };
+}
+
+export function compareEvidence(claim, sources) {
+  const matches = sources.flatMap(source => sourceMatches(claim, source).map(excerpt => ({ ...source, excerpt })));
+  const positive = matches.filter(item => !/\b(?:cannot|can't|not|non-refundable|no redemption|ineligible|prohibited)\b/i.test(item.excerpt));
+  const negative = matches.filter(item => /\b(?:cannot|can't|not|non-refundable|no redemption|ineligible|prohibited)\b/i.test(item.excerpt));
+  let overall = 'unsupported';
+  if (positive.length && negative.length) overall = 'conflicting';
+  else if (positive.length >= 2) overall = 'corroborated';
+  else if (positive.length === 1) overall = 'single-source';
+  return { claim, overall, claims: [{ claim, status: overall, source_count: new Set(matches.map(item => item.url)).size, excerpts: matches.map(item => ({ url: item.url, title: item.title, excerpt: item.excerpt })) }] };
 }
 
 async function assertPublicHttpUrl(value) {

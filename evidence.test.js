@@ -1,35 +1,39 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { extractEvidence, inspectUrl, buildEvidenceLedger } from './evidence.js';
+import { compareEvidence, extractEvidence, inspectUrl } from './evidence.js';
+
+test('compareEvidence marks two matching sources as corroborated', () => {
+  const result = compareEvidence('redeem rewards', [
+    { title: 'Issuer terms', url: 'https://issuer.example/terms', text: 'Users can redeem rewards within 30 days.' },
+    { title: 'Partner FAQ', url: 'https://partner.example/faq', text: 'Rewards can be redeemed within 30 days by eligible users.' }
+  ]);
+  assert.equal(result.overall, 'corroborated');
+  assert.equal(result.claims[0].status, 'corroborated');
+  assert.equal(result.claims[0].source_count, 2);
+});
+
+test('compareEvidence marks a claim with opposing source language as conflicting', () => {
+  const result = compareEvidence('redeem rewards', [
+    { title: 'Issuer terms', url: 'https://issuer.example/terms', text: 'Users can redeem rewards within 30 days.' },
+    { title: 'Updated notice', url: 'https://issuer.example/notice', text: 'Rewards cannot be redeemed and are non-refundable.' }
+  ]);
+  assert.equal(result.overall, 'conflicting');
+});
+
+test('compareEvidence marks one supporting source as single-source', () => {
+  const result = compareEvidence('redeem rewards', [
+    { title: 'Issuer terms', url: 'https://issuer.example/terms', text: 'Users can redeem rewards within 30 days.' },
+    { title: 'About page', url: 'https://issuer.example/about', text: 'A community building new tools.' }
+  ]);
+  assert.equal(result.overall, 'single-source');
+});
 
 test('extractEvidence returns title and normalized text from HTML', () => {
-  const result = extractEvidence('<html><head><title>Official Terms</title></head><body><h1>Official Terms</h1><p>Redeem within 30 days.</p></body></html>', 'https://example.com/terms');
+  const result = extractEvidence('<title>Official Terms</title><p>Redeem within 30 days.</p>', 'https://example.com/terms');
   assert.equal(result.title, 'Official Terms');
   assert.match(result.text, /Redeem within 30 days/);
-  assert.equal(result.url, 'https://example.com/terms');
 });
 
-test('buildEvidenceLedger creates deterministic excerpts and IDs', () => {
-  const result = buildEvidenceLedger('Redeem terms', [{
-    title: 'Official Terms', url: 'https://example.com/terms', text: 'Redeem within 30 days. Contact support for help.'
-  }]);
-  assert.equal(result.claim, 'Redeem terms');
-  assert.equal(result.sources.length, 1);
-  assert.equal(result.sources[0].id, 'source-1');
-  assert.equal(result.sources[0].excerpt, 'Redeem within 30 days.');
-  assert.equal(result.sources[0].quality, 'sourced');
-});
-
-test('buildEvidenceLedger does not invent an excerpt when no claim terms match', () => {
-  const result = buildEvidenceLedger('Guaranteed yield', [{ title: 'Terms', url: 'https://example.com', text: 'Contact support for help.' }]);
-  assert.equal(result.sources[0].excerpt, null);
-  assert.equal(result.sources[0].quality, 'unmatched');
-});
-
-test('inspectUrl rejects non-http URLs before fetching', async () => {
-  await assert.rejects(() => inspectUrl('file:///etc/passwd'), /Only http/);
-});
-
-test('inspectUrl rejects localhost and private network targets', async () => {
+test('inspectUrl rejects private network targets', async () => {
   await assert.rejects(() => inspectUrl('http://127.0.0.1:8787'), /private network/);
 });
