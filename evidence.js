@@ -18,6 +18,21 @@ export function extractEvidence(html, url) {
   return { title, url, text: text.slice(0, 12000) };
 }
 
+function sentences(text) {
+  return text.split(/(?<=[.!?])\s+/).map(s => s.trim()).filter(Boolean);
+}
+
+export function buildEvidenceLedger(claim, sources) {
+  const terms = claim.toLowerCase().split(/[^a-z0-9]+/).filter(term => term.length >= 4);
+  return {
+    claim,
+    sources: sources.map((source, index) => {
+      const excerpt = sentences(source.text).find(sentence => terms.some(term => sentence.toLowerCase().includes(term))) || null;
+      return { id: `source-${index + 1}`, title: source.title, url: source.url, excerpt, quality: excerpt ? 'sourced' : 'unmatched' };
+    })
+  };
+}
+
 async function assertPublicHttpUrl(value) {
   let parsed;
   try { parsed = new URL(value); } catch { throw new Error('Invalid URL'); }
