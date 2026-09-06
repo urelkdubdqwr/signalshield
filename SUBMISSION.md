@@ -49,5 +49,7 @@ The current demo uses deterministic matching and public HTML sources. It is a tr
 
 ## Team / links
 - GitHub: https://github.com/urelkdubdqwr/signalshield
-- Live demo: ADD_RENDER_URL_HERE
+- Live demo: https://signalshield-nlc1.onrender.com
+- Health check: https://signalshield-nlc1.onrender.com/health
+- Note: the current Render URL serves the UI and health endpoint; API routing needs one Render service configuration check before demo submission.
 - Demo video: ADD_VIDEO_URL_HERE
