@@ -1,6 +1,7 @@
 import http from 'node:http';
 import { URL } from 'node:url';
 import { inspectUrl, buildEvidenceLedger, compareEvidence } from './evidence.js';
+import { createReport, getReport } from './reports.js';
 
 const port = Number(process.env.PORT || 8787);
 const html = `<!doctype html>
@@ -15,7 +16,7 @@ const html = `<!doctype html>
 const $=s=>document.querySelector(s);
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function render(data){const flags=(data.flags||[]).map(x=>'<li>'+esc(x)+'</li>').join('');const errors=(data.source_errors||[]).map(x=>'<li class="error">'+esc(x.url)+': '+esc(x.error)+'</li>').join('');const sources=(data.evidence?.sources||[]).map(s=>'<article class="source"><h3>'+esc(s.title)+'</h3><a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.url)+'</a><small> · '+esc(s.quality)+'</small>'+(s.excerpt?'<blockquote>'+esc(s.excerpt)+'</blockquote>':'<p class="missing">No matching excerpt found.</p>')+'</article>').join('');const overall=data.comparison?.overall?'<p><b>Cross-source result:</b> '+esc(data.comparison.overall)+'</p>':'';$('#result').innerHTML='<span class="verdict '+(data.verdict==='REVIEW_BEFORE_ACTING'?'danger':'')+'">'+esc(data.verdict)+'</span>'+overall+(flags?'<h3>Risk signals</h3><ul>'+flags+'</ul>':'')+(sources?'<h3>Evidence receipts</h3>'+sources:'')+(errors?'<h3>Source errors</h3><ul>'+errors+'</ul>':'');}
-$('#inspect').addEventListener('click',async()=>{const claim=$('#claim').value.trim();const sources=$('#sources').value.split(/\\n+/).map(x=>x.trim()).filter(Boolean);if(!claim){$('#status').hidden=false;$('#status').textContent='Enter a claim first.';return}$('#status').hidden=false;$('#status').textContent='Fetching receipts…';$('#result').innerHTML='';try{const r=await fetch('/api/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({claim,sources})});const data=await r.json();if(!r.ok)throw new Error(data.error||'Request failed');render(data);$('#status').textContent='Inspection complete. Read the receipts, ser.';}catch(e){$('#status').textContent='Inspection failed: '+e.message;}});
+$('#inspect').addEventListener('click',async()=>{const claim=$('#claim').value.trim();const sources=$('#sources').value.split(/\\n+/).map(x=>x.trim()).filter(Boolean);if(!claim){$('#status').hidden=false;$('#status').textContent='Enter a claim first.';return}$('#status').hidden=false;$('#status').textContent='Fetching receipts…';$('#result').innerHTML='';try{const r=await fetch('/api/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({claim,sources})});const data=await r.json();if(!r.ok)throw new Error(data.error||'Request failed');render(data);if(data.report_url){const link=location.origin+data.report_url;$('#status').innerHTML='Inspection complete. <a href="'+link+'" target="_blank" rel="noopener">Open shareable report</a>';return;}$('#status').textContent='Inspection complete. Read the receipts, ser.';}catch(e){$('#status').textContent='Inspection failed: '+e.message;}});
 </script></body></html>`;
 
 export function inspectClaim(claim) {
@@ -29,6 +30,11 @@ export function inspectClaim(claim) {
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
   if (req.method === 'GET' && u.pathname === '/') { res.writeHead(200, {'content-type':'text/html; charset=utf-8'}); return res.end(html); }
+  if (req.method === 'GET' && u.pathname.startsWith('/report/')) {
+    const report = getReport(u.pathname.slice('/report/'.length));
+    if (!report) { res.writeHead(404, {'content-type':'application/json'}); return res.end(JSON.stringify({error:'report not found'})); }
+    res.writeHead(200, {'content-type':'application/json'}); return res.end(JSON.stringify(report));
+  }
   if (req.method === 'POST' && u.pathname === '/api/inspect') {
     let body = ''; for await (const chunk of req) body += chunk;
     try {
@@ -42,6 +48,9 @@ const server = http.createServer(async (req, res) => {
         if (fetched.length) { result.source = fetched[0]; result.evidence = buildEvidenceLedger(data.claim.trim(), fetched); result.comparison = fetched.length > 1 ? compareEvidence(data.claim.trim(), fetched) : null; }
         if (errors.length) result.source_errors = errors;
       }
+      const reportId = createReport(result);
+      result.report_id = reportId;
+      result.report_url = `/report/${reportId}`;
       res.writeHead(200, {'content-type':'application/json'}); return res.end(JSON.stringify(result));
     } catch (e) { res.writeHead(400, {'content-type':'application/json'}); return res.end(JSON.stringify({error:e.message})); }
   }
