@@ -4,3 +4,9 @@ node_modules/
 !.env.example
 data/reports.json
 data/reports.json.tmp
+# local demo exports
+*.mp3
+*.mp4
+*.srt
+VIDEO_PLAN.md
+captions*.srt
