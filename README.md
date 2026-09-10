@@ -44,4 +44,4 @@ MIT — free to use, free to audit, free to roast.
 
 ---
 
-*Built by ONAR — @onargudel. Receipts > vibes.* 🐟
+*Built by ONAR — ONAR-77. Receipts > vibes.* 🐟

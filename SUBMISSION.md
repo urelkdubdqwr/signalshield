@@ -48,7 +48,7 @@ SignalShield does not ask users to trust an opaque AI score. It gives them recei
 The current demo uses deterministic matching and public HTML sources. It is a transparent prototype, not a legal, financial, or security guarantee. Reports are persisted locally for the demo; a production deployment should use a managed database.
 
 ## Team / links
-- GitHub: https://github.com/urelkdubdqwr/signalshield
+- GitHub: repo signalshield (remote origin)
 - Live demo: https://signalshield-nlc1.onrender.com
 - Health check: https://signalshield-nlc1.onrender.com/health
 - Note: the current Render URL serves the UI and health endpoint; API routing needs one Render service configuration check before demo submission.
