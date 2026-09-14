@@ -1,3 +1,5 @@
+<img src="assets/header.svg" alt="SIGNALSHIELD — trust nothing, verify everything" width="100%">
+
 # SignalShield 🛡️
 
 > Before you trust the link, make it show its receipts.
@@ -44,4 +46,4 @@ MIT — free to use, free to audit, free to roast.
 
 ---
 
-*Built by ONAR — ONAR-77. Receipts > vibes.* 🐟
+*Built by ONAR-77. Receipts > vibes.* 🧾
