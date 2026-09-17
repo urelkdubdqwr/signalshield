@@ -2,6 +2,10 @@
 
 # SignalShield 🛡️
 
+[![CI](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml/badge.svg)](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
+**Live demo:** https://signalshield-nlc1.onrender.com · **MCP server:** `node mcp-server.js` (stdio, zero deps)
+
 > Before you trust the link, make it show its receipts.
 
 Internet penuh "trust me bro" — yield 3000% APY, "mint sekarang atau nangis", DM dari "support" yang nggak diminta. SignalShield balik logikanya: klaim dulu, bukti belakangan. Paste claim-nya, dapet risk signals + evidence gaps sebelum lo gerak.

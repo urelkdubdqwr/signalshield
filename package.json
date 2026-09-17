@@ -1,9 +1,22 @@
 {
   "name": "signalshield",
   "version": "0.1.0",
-  "private": true,
+  "private": false,
   "description": "Evidence-first trust reports for links, claims, and financial opportunities.",
   "type": "module",
-  "scripts": {"start":"node server.js","test":"node --test"},
-  "engines":{"node":">=20"}
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/urelkdubdqwr/signalshield.git"
+  },
+  "bin": {
+    "signalshield-mcp": "./mcp-server.js"
+  }
 }
