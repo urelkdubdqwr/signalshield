@@ -37,3 +37,22 @@ test('extractEvidence returns title and normalized text from HTML', () => {
 test('inspectUrl rejects private network targets', async () => {
   await assert.rejects(() => inspectUrl('http://127.0.0.1:8787'), /private network/);
 });
+
+test('checkDomainHeuristics detects hyphenated typosquat variations of known brands', async () => {
+  const { checkDomainHeuristics } = await import('./evidence.js');
+  const flags = checkDomainHeuristics('arc-pad.xyz');
+  assert.ok(flags.some(f => f.startsWith('typosquat-hyphen-brand-mimic:arcpad')));
+});
+
+test('checkDomainHeuristics detects edit distance typosquatting', async () => {
+  const { checkDomainHeuristics } = await import('./evidence.js');
+  const flags = checkDomainHeuristics('arcpadd.xyz');
+  assert.ok(flags.some(f => f.startsWith('typosquat-edit-distance:arcpad')));
+});
+
+test('checkDomainHeuristics ignores legitimate brand domains', async () => {
+  const { checkDomainHeuristics } = await import('./evidence.js');
+  const flags = checkDomainHeuristics('arcpad.xyz');
+  assert.deepEqual(flags, []);
+});
+

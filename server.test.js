@@ -23,3 +23,10 @@ test('marks links for verification', () => {
   const result = inspectClaim('Read this: https://example.com/offer');
   assert.ok(result.flags.includes('external-link-needs-verification'));
 });
+
+test('flags domain typosquatting in claim', () => {
+  const result = inspectClaim('Claim your tokens at https://arc-pad.xyz/airdrop');
+  assert.equal(result.verdict, 'REVIEW_BEFORE_ACTING');
+  assert.ok(result.flags.some(f => f.startsWith('typosquat-hyphen-brand-mimic:arcpad')));
+});
+

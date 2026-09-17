@@ -1,6 +1,6 @@
 import http from 'node:http';
 import { URL } from 'node:url';
-import { inspectUrl, buildEvidenceLedger, compareEvidence } from './evidence.js';
+import { inspectUrl, buildEvidenceLedger, compareEvidence, checkDomainHeuristics } from './evidence.js';
 import { createReport, getReport, reportHtml } from './reports.js';
 
 const port = Number(process.env.PORT || 8787);
@@ -25,6 +25,31 @@ export function inspectClaim(claim) {
   if (/guaranteed|risk[- ]free|100%|instant profit|double your/i.test(claim)) flags.push('unrealistic-return-language');
   if (/connect wallet|seed phrase|private key|send crypto|deposit now/i.test(claim)) flags.push('high-risk-action-request');
   if (/https?:\/\//i.test(claim)) flags.push('external-link-needs-verification');
+
+  // Check URLs and potential domain mentions for typosquatting / domain heuristics
+  const urls = claim.match(/https?:\/\/[^\s/$.?#].[^\s]*/gi) || [];
+  for (const rawUrl of urls) {
+    try {
+      const parsed = new URL(rawUrl);
+      const domainFlags = checkDomainHeuristics(parsed.hostname);
+      for (const df of domainFlags) {
+        if (!flags.includes(df)) flags.push(df);
+      }
+    } catch {
+      // Invalid URL handled elsewhere
+    }
+  }
+  // Also check standalone domain names (e.g. arc-pad.xyz, arcpadd.io)
+  const domainTokens = claim.match(/\b[a-z0-9-]+(?:\.[a-z0-9-]+)+\b/gi) || [];
+  for (const token of domainTokens) {
+    if (!token.startsWith('http')) {
+      const domainFlags = checkDomainHeuristics(token);
+      for (const df of domainFlags) {
+        if (!flags.includes(df)) flags.push(df);
+      }
+    }
+  }
+
   return { verdict: flags.length ? 'REVIEW_BEFORE_ACTING' : 'INSUFFICIENT_EVIDENCE', flags, evidence: [], missing: ['independent primary source', 'custody/issuer verification', 'clear terms and redemption path'], next_steps: ['Do not share seed phrases or private keys', 'Verify claims against primary sources', 'Use a burner wallet for testing only'], input_preview: claim.slice(0, 240) };
 }
 
