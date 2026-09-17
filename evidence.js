@@ -61,6 +61,84 @@ async function assertPublicHttpUrl(value) {
   return parsed;
 }
 
+export function levenshteinDistance(a, b) {
+  const m = a.length;
+  const n = b.length;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[i][j] = Math.min(
+        dp[i - 1][j] + 1,
+        dp[i][j - 1] + 1,
+        dp[i - 1][j - 1] + cost
+      );
+    }
+  }
+  return dp[m][n];
+}
+
+export const KNOWN_BRAND_DOMAINS = [
+  'arcpad.xyz',
+  'arcpad.io',
+  'ethereum.org',
+  'uniswap.org',
+  'opensea.io',
+  'binance.com',
+  'coinbase.com',
+  'metamask.io'
+];
+
+export function checkDomainHeuristics(hostname, knownBrands = KNOWN_BRAND_DOMAINS) {
+  const flags = [];
+  const cleanHost = String(hostname || '').toLowerCase().replace(/:\d+$/, '').trim();
+  if (!cleanHost) return flags;
+
+  // Extract base domain and labels
+  const parts = cleanHost.split('.');
+  const baseName = parts.length > 1 ? parts[parts.length - 2] : parts[0];
+
+  // Hyphen pattern or suspicious subdomain pattern (e.g. arc-pad, brand-claim, sub.sub.sub)
+  if (parts.length > 3) {
+    flags.push('excessive-subdomain-depth');
+  }
+
+  for (const brand of knownBrands) {
+    const brandParts = brand.toLowerCase().split('.');
+    const brandBase = brandParts.length > 1 ? brandParts[brandParts.length - 2] : brandParts[0];
+
+    // If exact brand domain match, no typosquatting flag
+    if (cleanHost === brand || cleanHost.endsWith('.' + brand)) {
+      continue;
+    }
+
+    // Check hyphen variations (e.g. arc-pad vs arcpad)
+    const baseWithoutHyphens = baseName.replace(/-/g, '');
+    if (baseName.includes('-') && (baseWithoutHyphens === brandBase || baseName.split('-').includes(brandBase))) {
+      flags.push(`typosquat-hyphen-brand-mimic:${brand}`);
+      continue;
+    }
+
+    // Check subdomain mimic (e.g. arcpad.phishing.com or brand in subdomain)
+    if (parts.length > 2 && parts.slice(0, -2).includes(brandBase)) {
+      flags.push(`subdomain-brand-mimic:${brand}`);
+      continue;
+    }
+
+    // Check edit distance on base brand name (typosquatting e.g. arcpad vs arcpaad, arcpadd, or 1 edit)
+    if (brandBase.length >= 4) {
+      const dist = levenshteinDistance(baseName, brandBase);
+      if (dist > 0 && dist <= 2 && Math.abs(baseName.length - brandBase.length) <= 2) {
+        flags.push(`typosquat-edit-distance:${brand}`);
+      }
+    }
+  }
+
+  return flags;
+}
+
 export async function inspectUrl(value) {
   const parsed = await assertPublicHttpUrl(value);
   const response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(10000), headers: { 'user-agent': 'SignalShield/0.1' } });
@@ -68,3 +146,4 @@ export async function inspectUrl(value) {
   if (!response.ok) throw new Error(`Source returned HTTP ${response.status}`);
   return extractEvidence(await response.text(), parsed.href);
 }
+
