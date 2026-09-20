@@ -1,4 +1,6 @@
-# SignalShield 🛡️ — STUDIO PINGGIR KASUR
+# STUDIO PINGGIR KASUR 🛏️
+
+## SignalShield 🛡️ — trust layer, bukti dulu gak noinfo.
 
 [![CI](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml/badge.svg)](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
@@ -58,4 +60,4 @@ MIT — free to use, free to audit, free to roast.
 
 ---
 
-*Built by ONAR-77. Receipts > vibes. 🧾*
+*Receipts > vibes. 🧾*
