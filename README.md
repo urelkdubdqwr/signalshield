@@ -1,4 +1,4 @@
-# SignalShield 🛡️ — STUDIO PINGGIR KASUR
+# SignalShield 🛡️
 
 [![CI](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml/badge.svg)](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
