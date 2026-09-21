@@ -17,6 +17,9 @@ Built for GatewayHacks 2026. Submitted. Live. Receipts included. 🧾
 
 ## Current vertical slice
 
+![SignalShield architecture](assets/architecture.png)
+*interaktif: [assets/architecture.html](assets/architecture.html)*
+
 - Browser UI at `http://localhost:8787`
 - `POST /api/inspect` JSON endpoint
 - MCP stdio server with `inspect_claim` — agent lain bisa ngecek claim juga
