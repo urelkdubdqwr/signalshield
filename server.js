@@ -58,7 +58,9 @@ export function inspectClaim(claim) {
 }
 
 const server = http.createServer(async (req, res) => {
-  const u = new URL(req.url, `http://${req.headers.host}`);
+  let u;
+  try { u = new URL(req.url, `http://${req.headers.host || 'localhost'}`); }
+  catch { res.writeHead(400, {'content-type':'application/json'}); return res.end(JSON.stringify({error:'bad request target or Host header'})); }
   if (req.method === 'GET' && u.pathname === '/health') { res.writeHead(200, {'content-type':'application/json'}); return res.end(JSON.stringify(healthResponse())); }
   if (req.method === 'GET' && u.pathname === '/') { res.writeHead(200, {'content-type':'text/html; charset=utf-8'}); return res.end(html); }
   if (req.method === 'GET' && u.pathname.startsWith('/report/')) {
