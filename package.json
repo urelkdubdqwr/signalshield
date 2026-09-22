@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.js",
-    "test": "node --test"
+    "test": "SIGNALSHIELD_STORE=$(mktemp -d)/reports.json node --test"
   },
   "engines": {
     "node": ">=20"

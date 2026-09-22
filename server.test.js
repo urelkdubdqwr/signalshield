@@ -14,9 +14,24 @@ test('does not invent evidence for a bare claim', () => {
   assert.deepEqual(result.evidence, []);
 });
 
-test('returns evidence ledger for a verified public URL', async () => {
-  const result = await fetch('http://127.0.0.1:9').catch(() => null);
-  assert.equal(result, null);
+test('survives a malformed Host header (regression: process-crash DoS)', async () => {
+  const { server } = await import('./server.js');
+  await new Promise((r) => server.listen(0, '127.0.0.1', r));
+  const port = server.address().port;
+  const net = await import('node:net');
+  const raw = await new Promise((resolve, reject) => {
+    const sock = net.connect(port, '127.0.0.1');
+    let out = '';
+    sock.on('data', (d) => (out += d));
+    sock.on('close', () => resolve(out));
+    sock.on('error', reject);
+    sock.end('GET /health HTTP/1.1\r\nHost: bad host {\r\n\r\n');
+  });
+  assert.match(raw, /HTTP\/1\.1 400/);
+  const ok = await fetch(`http://127.0.0.1:${port}/health`);
+  assert.equal(ok.status, 200);
+  assert.equal((await ok.json()).status, 'ok');
+  await new Promise((r) => server.close(r));
 });
 
 test('marks links for verification', () => {

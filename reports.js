@@ -3,7 +3,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-const storePath = path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'reports.json');
+const storePath = process.env.SIGNALSHIELD_STORE
+  || path.join(path.dirname(fileURLToPath(import.meta.url)), 'data', 'reports.json');
 const reports = new Map();
 const esc = (value) => String(value ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
