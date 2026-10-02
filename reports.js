@@ -25,7 +25,13 @@ load();
 
 export function clearReports() { reports.clear(); persist(); }
 export function createReport(report) {
+  // ponytail: FIFO eviction at MAX_REPORTS caps disk/RAM on free tiers; add LRU or persistence policy if real traffic needs it.
+  const MAX_REPORTS = 500;
   const id = crypto.createHash('sha256').update(`${Date.now()}:${JSON.stringify(report)}`).digest('hex').slice(0, 12);
+  while (reports.size >= MAX_REPORTS) {
+    const oldest = reports.keys().next().value;
+    reports.delete(oldest);
+  }
   reports.set(id, report); persist(); return id;
 }
 export function getReport(id) { return reports.get(id) || null; }

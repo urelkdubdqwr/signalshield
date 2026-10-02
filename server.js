@@ -39,7 +39,10 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, {'content-type':'application/json'}); return res.end(JSON.stringify(report));
   }
   if (req.method === 'POST' && u.pathname === '/api/inspect') {
-    let body = ''; for await (const chunk of req) body += chunk;
+    let body = ''; for await (const chunk of req) {
+      body += chunk;
+      if (body.length > 1_000_000) { res.writeHead(413, {'content-type':'application/json'}); return res.end(JSON.stringify({error:'request body too large'})); }
+    }
     try {
       const data = JSON.parse(body);
       if (typeof data.claim !== 'string' || !data.claim.trim()) throw new Error('claim must be non-empty');

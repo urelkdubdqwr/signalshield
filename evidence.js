@@ -1,5 +1,7 @@
 import dns from 'node:dns/promises';
 import net from 'node:net';
+import http from 'node:http';
+import https from 'node:https';
 
 function isPrivateAddress(address) {
   if (net.isIPv4(address)) {
@@ -58,13 +60,35 @@ async function assertPublicHttpUrl(value) {
   if (!['http:', 'https:'].includes(parsed.protocol)) throw new Error('Only http and https URLs are supported');
   const addresses = await dns.lookup(parsed.hostname, { all: true });
   if (addresses.some(({ address }) => isPrivateAddress(address))) throw new Error('private network URLs are not allowed');
-  return parsed;
+  return { parsed, address: addresses[0].address };
 }
 
 export async function inspectUrl(value) {
-  const parsed = await assertPublicHttpUrl(value);
-  const response = await fetch(parsed, { redirect: 'manual', signal: AbortSignal.timeout(10000), headers: { 'user-agent': 'SignalShield/0.1' } });
-  if (response.status >= 300 && response.status < 400) throw new Error('Redirects require explicit verification');
-  if (!response.ok) throw new Error(`Source returned HTTP ${response.status}`);
-  return extractEvidence(await response.text(), parsed.href);
+  // Pin the connection to the IP the safety check validated, so a DNS rebinding
+  // attack can't swap the address between this check and the fetch (TOCTOU).
+  // node:https with `servername` keeps TLS SNI + cert validation on the real
+  // hostname while connecting to the pinned IP (global fetch would send the IP
+  // as SNI and fail the handshake anyway).
+  const { parsed, address } = await assertPublicHttpUrl(value);
+  const body = await new Promise((resolve, reject) => {
+    const req = (parsed.protocol === 'https:' ? https : http).request({
+      host: address,
+      port: parsed.port || (parsed.protocol === 'https:' ? 443 : 80),
+      servername: parsed.protocol === 'https:' ? parsed.hostname : undefined,
+      path: `${parsed.pathname}${parsed.search}`,
+      method: 'GET',
+      headers: { host: parsed.host, 'user-agent': 'SignalShield/0.1' },
+      timeout: 10000,
+    }, (res) => {
+      if (res.statusCode >= 300 && res.statusCode < 400) { res.resume(); reject(new Error('Redirects require explicit verification')); return; }
+      if (!(res.statusCode >= 200 && res.statusCode < 300)) { res.resume(); reject(new Error(`Source returned HTTP ${res.statusCode}`)); return; }
+      let size = 0; const chunks = [];
+      res.on('data', (c) => { size += c.length; if (size > 5_000_000) { req.destroy(); reject(new Error('Source response too large')); return; } chunks.push(c); });
+      res.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')));
+    });
+    req.on('timeout', () => { req.destroy(); reject(new Error('Source request timed out')); });
+    req.on('error', reject);
+    req.end();
+  });
+  return extractEvidence(body, parsed.href);
 }
