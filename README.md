@@ -1,66 +1,109 @@
-<img src="assets/header.svg" alt="SIGNALSHIELD — trust nothing, verify everything" width="100%">
+# signalshield
 
-# SignalShield 🛡️ — prove it or gtfoh
+<img src="assets/header.svg" alt="signalshield — evidence-first trust layer, paste a claim get receipts" width="100%">
 
 [![CI](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml/badge.svg)](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-**Live demo:** https://signalshield-nlc1.onrender.com · **MCP server:** `node mcp-server.js` (stdio, zero deps)
+**Paste a claim, get receipts: risk signals, source excerpts, and a shareable
+trust verdict — before lo ape-ape gerak.** Zero npm dependencies, Node.js only.
 
-> Trust nothing. Make it show receipts.
+**Live demo:** https://signalshield-nlc1.onrender.com
 
-Internet is a "trust me bro" fest — 3000% APY degen farms, "mint now or cry",
-random "support" DMs. SignalShield flips the script: **claim first, receipts
-after.** Paste a claim → risk signals + evidence gaps sebelum lo ape-ape gerak.
-Evidence-first trust layer for Web3 claims.
+## The problem
 
-Built for GatewayHacks 2026. Submitted. Live. Receipts included. 🧾
+Internet runs on "trust me bro": guaranteed-return farms, "mint now or cry",
+random support DMs. Existing tools hand you an opaque score and no way to check
+it — so you either trust the black box or trust the stranger. Both lose money.
 
-## Current vertical slice
+## The fix, in 30 seconds
 
-![SignalShield architecture](assets/architecture.png)
-*interaktif: [assets/architecture.html](assets/architecture.html)*
+1. **Claim in, receipts out.** Claim + up to 5 public URLs → risk-flag scan,
+   fetched source text, matching excerpts, cross-source verdict.
+2. **Deterministic, never fabricated.** Verdict is `REVIEW_BEFORE_ACTING` when
+   risk flags hit, `INSUFFICIENT_EVIDENCE` when nothing proves the claim. Empty
+   evidence is never treated as proof — a tool that says "safu" without receipts
+   is worse than no tool.
+3. **Safe fetching.** Private-network URLs blocked (SSRF), connection pinned to
+   the validated IP (DNS-rebinding safe), redirects refused, 10s timeout,
+   5 MB response cap.
+4. **Shareable report.** Every inspection gets a 12-char ID → `/report/<id>`
+   JSON, or `?format=html` for a receipt you can forward.
+5. **Agent-native.** MCP stdio server (`inspect_claim`, `create_trust_report`)
+   so other agents can vet a claim too.
 
-- Browser UI at `http://localhost:8787`
-- `POST /api/inspect` JSON endpoint
-- MCP stdio server with `inspect_claim` — agent lain bisa ngecek claim juga
-- Deterministic safety checks, no fabricated evidence (never alpha-floor, never hype)
-- Tests: high-risk lang, wallet-action asks, links, MCP errors
+## How it works
 
-## Run
-
-```bash
-npm start
+```mermaid
+flowchart LR
+    U["claim + up to 5 URLs<br/>browser UI · POST /api/inspect · MCP"] --> R["risk scan<br/>guaranteed-return lang · wallet asks · links"]
+    R --> F["fetch sources<br/>private-IP block · IP pinned<br/>10s timeout · no redirects"]
+    F --> L["evidence ledger<br/>claim terms → matching excerpt<br/>sourced / unmatched"]
+    L --> C["cross-source compare<br/>corroborated · single-source<br/>conflicting · unsupported"]
+    C --> V{"verdict"}
+    V -->|flags hit| A["REVIEW_BEFORE_ACTING"]
+    V -->|no proof| B["INSUFFICIENT_EVIDENCE"]
+    A --> P["persist report<br/>data/reports.json"]
+    B --> P
+    P --> H["/report/&lt;id&gt; JSON<br/>?format=html shareable receipt"]
 ```
 
-## Deploy on Render
+Static diagram: [`assets/architecture.png`](assets/architecture.png) ·
+interactive: [`assets/architecture.html`](assets/architecture.html)
 
-`render.yaml` included. Render: **New → Blueprint**, connect repo, deploy service
-`signalshield`. `/health` buat readiness. Reports pakai local disk persistence
-buat demo — slap a persistent disk or managed DB before prod. Normal.
+## Quickstart
 
-MCP check, terminal lain:
+```bash
+git clone https://github.com/urelkdubdqwr/signalshield.git
+cd signalshield
+
+npm start    # browser UI on http://localhost:8787
+npm test     # node --test, same suite as CI
+```
+
+Needs Node.js >= 20. No `npm install` — zero dependencies.
+
+Inspect from the API:
+
+```bash
+curl -s localhost:8787/api/inspect \
+  -H 'content-type: application/json' \
+  -d '{"claim":"Users can redeem rewards within 30 days",
+       "sources":["https://issuer.example/terms","https://partner.example/faq"]}'
+```
+
+Talk to the MCP server (terminal lain):
 
 ```bash
 printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node mcp-server.js
 ```
 
-## Hackathon direction
+Deploy: `render.yaml` blueprint included — Render → **New → Blueprint**, connect
+repo. `/health` buat readiness. Reports persist ke `data/reports.json` lokal
+buat demo — slap a persistent disk or managed DB before prod.
 
-Next: source retrieval, evidence ledger, claim-to-source mapping, shareable report.
-Detector sengaja balikin `INSUFFICIENT_EVIDENCE` kalau belom beneran verify —
-a tool that fabricates "safu" is worse than no tool. Zero-sum BS.
+## What's inside
 
-## Report API
+| Path | What it is |
+|---|---|
+| `server.js` | HTTP service: browser UI, `POST /api/inspect`, `/report/<id>`, `/health`. |
+| `evidence.js` | SSRF-guarded source fetcher (IP pinning, no redirects), evidence ledger, cross-source compare. |
+| `reports.js` | Report store — `data/reports.json`, atomic writes, FIFO cap 500 — plus the shareable HTML receipt. |
+| `mcp-server.js` | MCP stdio server: `inspect_claim`, `create_trust_report`. Zero deps, runnable as `signalshield-mcp` bin. |
+| `*.test.js` | `node --test` suite: risk flags, wallet-action asks, links, MCP errors, health, reports. |
+| `render.yaml`, `Dockerfile` | One-click deploy blueprint + container. |
+| `SUBMISSION.md`, `DEMO_SCRIPT.md` | GatewayHacks 2026 submission write-up and demo walkthrough. |
+| `assets/architecture.png` | Architecture diagram (+ interactive HTML version). |
 
-`POST /api/inspect` terima `{ "claim": "...", "sources": ["https://..."] }` →
-return report ID. `/report/<id>?format=html` = shareable HTML receipt, or
-`/report/<id>` = JSON. Reports persist ke local ignored data file; move to managed
-DB before production.
+## Limitations
+
+Deterministic matching over public HTML sources — a transparent prototype, not
+a legal, financial, or security guarantee. Verdicts stay on the safe side:
+no proof = `INSUFFICIENT_EVIDENCE`, never a fabricated "safu".
 
 ## License
 
-MIT — free to use, free to audit, free to roast.
+MIT — see [LICENSE](LICENSE). Free to use, free to audit, free to roast.
 
 ---
 
-*Built by ONAR-77. Receipts > vibes. 🧾*
+*Built by ONAR-77 for GatewayHacks 2026. Receipts > vibes.*
