@@ -33,19 +33,7 @@ it — so you either trust the black box or trust the stranger. Both lose money.
 
 ## How it works
 
-```mermaid
-flowchart LR
-    U["claim + up to 5 URLs<br/>browser UI · POST /api/inspect · MCP"] --> R["risk scan<br/>guaranteed-return lang · wallet asks · links"]
-    R --> F["fetch sources<br/>private-IP block · IP pinned<br/>10s timeout · no redirects"]
-    F --> L["evidence ledger<br/>claim terms → matching excerpt<br/>sourced / unmatched"]
-    L --> C["cross-source compare<br/>corroborated · single-source<br/>conflicting · unsupported"]
-    C --> V{"verdict"}
-    V -->|flags hit| A["REVIEW_BEFORE_ACTING"]
-    V -->|no proof| B["INSUFFICIENT_EVIDENCE"]
-    A --> P["persist report<br/>data/reports.json"]
-    B --> P
-    P --> H["/report/&lt;id&gt; JSON<br/>?format=html shareable receipt"]
-```
+![signalshield architecture](assets/ecosystem.png)
 
 Static diagram: [`assets/architecture.png`](assets/architecture.png) ·
 interactive: [`assets/architecture.html`](assets/architecture.html)
