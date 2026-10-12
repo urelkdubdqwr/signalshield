@@ -8,7 +8,16 @@ function isPrivateAddress(address) {
     const [a, b] = address.split('.').map(Number);
     return a === 10 || a === 127 || a === 0 || (a === 169 && b === 254) || (a === 172 && b >= 16 && b <= 31) || (a === 192 && b === 168);
   }
-  return net.isIPv6(address) && (address === '::1' || address.startsWith('fc') || address.startsWith('fd') || address.startsWith('fe80:'));
+  if (!net.isIPv6(address)) return false;
+  const lower = address.toLowerCase();
+  // IPv4-mapped/compatible IPv6: validate the embedded IPv4
+  const mapped = lower.match(/^::(?:ffff:)?(\d+\.\d+\.\d+\.\d+)$/);
+  if (mapped) return isPrivateAddress(mapped[1]);
+  return lower === '::' || lower === '::1' ||
+    lower.startsWith('fc') || lower.startsWith('fd') || lower.startsWith('fe80:') ||
+    lower.startsWith('ff') ||           // multicast (incl. solicited-node ff02::1:ff)
+    lower.startsWith('2001:db8:') ||    // documentation 2001:db8::/32
+    lower.startsWith('2002:');          // 6to4
 }
 
 export function extractEvidence(html, url) {

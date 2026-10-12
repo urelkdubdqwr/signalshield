@@ -5,6 +5,35 @@ import { createReport, getReport, reportHtml } from './reports.js';
 
 const port = Number(process.env.PORT || 8787);
 export function healthResponse() { return { service: 'signalshield', status: 'ok', version: '0.1.0' }; }
+
+// ponytail: in-memory rate limiter, per-IP buckets if throughput matters
+const rateLimitMap = new Map();
+const RATE_WINDOW_MS = 60_000;
+const RATE_MAX = 10;
+const CLEAN_INTERVAL_MS = 10_000;
+let activeInspections = 0;
+const MAX_CONCURRENT = 3;
+const INSPECT_TIMEOUT_MS = 30_000;
+
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, timestamps] of rateLimitMap) {
+    const valid = timestamps.filter(t => now - t < RATE_WINDOW_MS);
+    if (valid.length) rateLimitMap.set(ip, valid);
+    else rateLimitMap.delete(ip);
+  }
+}, CLEAN_INTERVAL_MS).unref();
+
+function checkRateLimit(ip) {
+  const now = Date.now();
+  const timestamps = rateLimitMap.get(ip) || [];
+  const valid = timestamps.filter(t => now - t < RATE_WINDOW_MS);
+  if (valid.length >= RATE_MAX) return false;
+  valid.push(now);
+  rateLimitMap.set(ip, valid);
+  return true;
+}
+
 const html = `<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width"><title>SignalShield</title>
 <style>
@@ -17,8 +46,8 @@ const html = `<!doctype html>
 const $=s=>document.querySelector(s);
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function render(data){const flags=(data.flags||[]).map(x=>'<li>'+esc(x)+'</li>').join('');const errors=(data.source_errors||[]).map(x=>'<li class="error">'+esc(x.url)+': '+esc(x.error)+'</li>').join('');const sources=(data.evidence?.sources||[]).map(s=>'<article class="source"><h3>'+esc(s.title)+'</h3><a href="'+esc(s.url)+'" target="_blank" rel="noopener">'+esc(s.url)+'</a><small> · '+esc(s.quality)+'</small>'+(s.excerpt?'<blockquote>'+esc(s.excerpt)+'</blockquote>':'<p class="missing">No matching excerpt found.</p>')+'</article>').join('');const overall=data.comparison?.overall?'<p><b>Cross-source result:</b> '+esc(data.comparison.overall)+'</p>':'';$('#result').innerHTML='<span class="verdict '+(data.verdict==='REVIEW_BEFORE_ACTING'?'danger':'')+'">'+esc(data.verdict)+'</span>'+overall+(flags?'<h3>Risk signals</h3><ul>'+flags+'</ul>':'')+(sources?'<h3>Evidence receipts</h3>'+sources:'')+(errors?'<h3>Source errors</h3><ul>'+errors+'</ul>':'');}
-$('#inspect').addEventListener('click',async()=>{const claim=$('#claim').value.trim();const sources=$('#sources').value.split(/\\n+/).map(x=>x.trim()).filter(Boolean);if(!claim){$('#status').hidden=false;$('#status').textContent='Enter a claim first.';return}$('#status').hidden=false;$('#status').textContent='Fetching receipts…';$('#result').innerHTML='';try{const r=await fetch('/api/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({claim,sources})});const data=await r.json();if(!r.ok)throw new Error(data.error||'Request failed');render(data);if(data.report_url){const link=location.origin+data.report_url+'?format=html';$('#status').innerHTML='Inspection complete. <a href="'+link+'" target="_blank" rel="noopener">Open shareable report</a>';return;}$('#status').textContent='Inspection complete. Read the receipts, ser.';}catch(e){$('#status').textContent='Inspection failed: '+e.message;}});
-</script></body></html>`;
+$('#inspect').addEventListener('click',async()=>{const claim=$('#claim').value.trim();const sources=$('#sources').value.split(/\n+/).map(x=>x.trim()).filter(Boolean);if(!claim){$('#status').hidden=false;$('#status').textContent='Enter a claim first.';return}$('#status').hidden=false;$('#status').textContent='Fetching receipts…';$('#result').innerHTML='';try{const r=await fetch('/api/inspect',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({claim,sources})});const data=await r.json();if(!r.ok)throw new Error(data.error||'Request failed');render(data);if(data.report_url){const link=location.origin+data.report_url+'?format=html';$('#status').innerHTML='Inspection complete. <a href="'+link+'" target="_blank" rel="noopener">Open shareable report</a>';return;}$('#status').textContent='Inspection complete. Read the receipts, ser.';}catch(e){$('#status').textContent='Inspection failed: '+e.message;}});
+</script></body>`;
 
 export function inspectClaim(claim) {
   const flags = [];
@@ -39,26 +68,49 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(200, {'content-type':'application/json'}); return res.end(JSON.stringify(report));
   }
   if (req.method === 'POST' && u.pathname === '/api/inspect') {
+    const ip = req.socket.remoteAddress;
+    if (!checkRateLimit(ip)) {
+      res.writeHead(429, {'content-type':'application/json', 'retry-after': '60'});
+      return res.end(JSON.stringify({error:'rate limit exceeded, try again later'}));
+    }
+    if (activeInspections >= MAX_CONCURRENT) {
+      res.writeHead(503, {'content-type':'application/json'});
+      return res.end(JSON.stringify({error:'too many concurrent inspections, try again later'}));
+    }
     let body = ''; for await (const chunk of req) {
       body += chunk;
       if (body.length > 1_000_000) { res.writeHead(413, {'content-type':'application/json'}); return res.end(JSON.stringify({error:'request body too large'})); }
     }
+    activeInspections++;
     try {
-      const data = JSON.parse(body);
-      if (typeof data.claim !== 'string' || !data.claim.trim()) throw new Error('claim must be non-empty');
-      const result = inspectClaim(data.claim.trim());
-      const urls = Array.isArray(data.sources) ? data.sources : (/^https?:\/\//i.test(data.claim.trim()) ? [data.claim.trim()] : []);
-      if (urls.length) {
-        const fetched = [], errors = [];
-        for (const sourceUrl of urls.slice(0, 5)) { try { fetched.push(await inspectUrl(sourceUrl)); } catch (error) { errors.push({url: sourceUrl, error: error.message}); } }
-        if (fetched.length) { result.source = fetched[0]; result.evidence = buildEvidenceLedger(data.claim.trim(), fetched); result.comparison = fetched.length > 1 ? compareEvidence(data.claim.trim(), fetched) : null; }
-        if (errors.length) result.source_errors = errors;
-      }
-      const reportId = createReport(result);
-      result.report_id = reportId;
-      result.report_url = `/report/${reportId}`;
+      const result = await Promise.race([
+        (async () => {
+          const data = JSON.parse(body);
+          if (typeof data.claim !== 'string' || !data.claim.trim()) throw new Error('claim must be non-empty');
+          const claimResult = inspectClaim(data.claim.trim());
+          const urls = Array.isArray(data.sources) ? data.sources : (/^https?:\/\//i.test(data.claim.trim()) ? [data.claim.trim()] : []);
+          if (urls.length) {
+            const fetched = [], errors = [];
+            for (const sourceUrl of urls.slice(0, 5)) { try { fetched.push(await inspectUrl(sourceUrl)); } catch (error) { errors.push({url: sourceUrl, error: error.message}); } }
+            if (fetched.length) { claimResult.source = fetched[0]; claimResult.evidence = buildEvidenceLedger(data.claim.trim(), fetched); claimResult.comparison = fetched.length > 1 ? compareEvidence(data.claim.trim(), fetched) : null; }
+            if (errors.length) claimResult.source_errors = errors;
+          }
+          const reportId = createReport(claimResult);
+          claimResult.report_id = reportId;
+          claimResult.report_url = `/report/${reportId}`;
+          return claimResult;
+        })(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('inspection timed out')), INSPECT_TIMEOUT_MS))
+      ]);
       res.writeHead(200, {'content-type':'application/json'}); return res.end(JSON.stringify(result));
-    } catch (e) { res.writeHead(400, {'content-type':'application/json'}); return res.end(JSON.stringify({error:e.message})); }
+    } catch (e) {
+      if (e.message === 'inspection timed out') {
+        res.writeHead(503, {'content-type':'application/json'}); return res.end(JSON.stringify({error:'inspection timed out'}));
+      }
+      res.writeHead(400, {'content-type':'application/json'}); return res.end(JSON.stringify({error:e.message}));
+    } finally {
+      activeInspections--;
+    }
   }
   res.writeHead(404); res.end('Not found');
 });
