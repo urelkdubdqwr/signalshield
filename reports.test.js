@@ -6,7 +6,7 @@ test('createReport returns a short shareable id and stores the report', () => {
   clearReports();
   const report = { claim: 'redeem rewards', comparison: { overall: 'single-source' } };
   const id = createReport(report);
-  assert.match(id, /^[a-f0-9]{12}$/);
+  assert.match(id, /^[a-f0-9]{16}$/);
   assert.deepEqual(getReport(id), report);
 });
 

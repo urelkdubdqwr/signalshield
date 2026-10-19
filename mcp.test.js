@@ -23,7 +23,7 @@ test('MCP creates a persisted shareable trust report', () => {
     params: { name: 'create_trust_report', arguments: { claim: 'A community project is launching.' } }
   });
   const payload = JSON.parse(result.result.content[0].text);
-  assert.match(payload.report_url, /^\/report\/[a-f0-9]{12}$/);
+  assert.match(payload.report_url, /^\/report\/[a-f0-9]{16}$/);
 });
 
 test('MCP rejects empty claims', () => {
