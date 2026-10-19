@@ -1,42 +1,50 @@
-# signalshield
+**[urelkdubdqwr](https://github.com/urelkdubdqwr)** · [website](https://studiopinggirkasur.xyz/)
 
-<img src="assets/header.svg" alt="signalshield — evidence-first trust layer, paste a claim get receipts" width="100%">
+<!-- SignalShield — evidence-first trust scanner -->
+
+<img src="assets/header.svg" alt="SignalShield — evidence-first trust scanner: paste claim + sources, get risk signals and a shareable receipt" width="100%">
 
 [![CI](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml/badge.svg)](https://github.com/urelkdubdqwr/signalshield/actions/workflows/ci.yml) [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
 **Paste a claim, get receipts: risk signals, source excerpts, and a shareable
-trust verdict — before lo ape-ape gerak.** Zero npm dependencies, Node.js only.
+trust verdict — before you act on it.** Zero npm dependencies, Node.js only.
+
+## What it is
+
+The internet runs on "trust me bro": guaranteed-return farms, "mint now or cry",
+random support DMs. Existing tools hand you an opaque score with no way to check
+it. SignalShield does it the boring way — it scans the claim for red-flag
+language, fetches the public sources you point it at, shows you the matching
+sentences, and tells you what the sources actually say (including when they say
+nothing). No proof is never treated as proof: a tool that says "safu" without
+receipts is worse than no tool.
 
 **Live demo:** https://signalshield-nlc1.onrender.com
 
-## The problem
-
-Internet runs on "trust me bro": guaranteed-return farms, "mint now or cry",
-random support DMs. Existing tools hand you an opaque score and no way to check
-it — so you either trust the black box or trust the stranger. Both lose money.
-
-## The fix, in 30 seconds
-
-1. **Claim in, receipts out.** Claim + up to 5 public URLs → risk-flag scan,
-   fetched source text, matching excerpts, cross-source verdict.
-2. **Deterministic, never fabricated.** Verdict is `REVIEW_BEFORE_ACTING` when
-   risk flags hit, `INSUFFICIENT_EVIDENCE` when nothing proves the claim. Empty
-   evidence is never treated as proof — a tool that says "safu" without receipts
-   is worse than no tool.
-3. **Safe fetching.** Private-network URLs blocked (SSRF), connection pinned to
-   the validated IP (DNS-rebinding safe), redirects refused, 10s timeout,
-   5 MB response cap.
-4. **Shareable report.** Every inspection gets a 12-char ID → `/report/<id>`
-   JSON, or `?format=html` for a receipt you can forward.
-5. **Agent-native.** MCP stdio server (`inspect_claim`, `create_trust_report`)
-   so other agents can vet a claim too.
-
 ## How it works
 
-![signalshield architecture](assets/ecosystem.png)
+![SignalShield architecture](assets/ecosystem.png)
 
-Static diagram: [`assets/architecture.png`](assets/architecture.png) ·
-interactive: [`assets/architecture.html`](assets/architecture.html)
+1. **Submit.** Browser UI, `POST /api/inspect` with `{"claim", "sources"}`, or
+   MCP `tools/call` — a claim plus up to 5 public URLs.
+2. **Risk scan.** Deterministic regex pass over the claim: unrealistic-return
+   language (`unrealistic-return-language`), wallet/seed-phrase asks
+   (`high-risk-action-request`), bare links (`external-link-needs-verification`).
+   Any flag → verdict `REVIEW_BEFORE_ACTING`; no flag → `INSUFFICIENT_EVIDENCE`
+   until sources prove otherwise.
+3. **Safe fetching.** Sources are DNS-checked against private ranges (SSRF
+   blocked), then the connection is pinned to the validated IP so DNS rebinding
+   can't swap the address mid-fetch. Redirects are refused, 10s timeout, 5 MB
+   response cap.
+4. **Evidence ledger.** Extracted page text is searched for sentences matching
+   claim terms — each source comes back `sourced` (with the excerpt shown) or
+   `unmatched`.
+5. **Cross-source compare.** With 2+ sources the matches are separated into
+   corroborated, single-source, conflicting (negating language like "not" or
+   "prohibited"), or unsupported.
+6. **Shareable receipt.** Every inspection persists to `data/reports.json` under
+   a 16-hex id, served at `/report/<id>` as JSON or `?format=html` — a receipt
+   you can forward instead of a vibe you have to take on faith.
 
 ## Quickstart
 
@@ -66,21 +74,20 @@ printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' | node mcp-server
 ```
 
 Deploy: `render.yaml` blueprint included — Render → **New → Blueprint**, connect
-repo. `/health` buat readiness. Reports persist ke `data/reports.json` lokal
-buat demo — slap a persistent disk or managed DB before prod.
+the repo. `/health` for readiness. Reports go to `data/reports.json` — fine for
+a demo, slap a persistent disk or managed DB on it before prod.
 
 ## What's inside
 
 | Path | What it is |
 |---|---|
-| `server.js` | HTTP service: browser UI, `POST /api/inspect`, `/report/<id>`, `/health`. |
+| `server.js` | HTTP service: browser UI, guardrails (10 req/min per IP, 3 concurrent, 1 MB body, 30s timeout), `POST /api/inspect`, `/report/<id>`, `/health`. |
 | `evidence.js` | SSRF-guarded source fetcher (IP pinning, no redirects), evidence ledger, cross-source compare. |
 | `reports.js` | Report store — `data/reports.json`, atomic writes, FIFO cap 500 — plus the shareable HTML receipt. |
-| `mcp-server.js` | MCP stdio server: `inspect_claim`, `create_trust_report`. Zero deps, runnable as `signalshield-mcp` bin. |
+| `mcp-server.js` | MCP stdio server: `inspect_claim`, `create_trust_report`. Same engine, runnable as `signalshield-mcp` bin. |
 | `*.test.js` | `node --test` suite: risk flags, wallet-action asks, links, MCP errors, health, reports. |
 | `render.yaml`, `Dockerfile` | One-click deploy blueprint + container. |
-| `SUBMISSION.md`, `DEMO_SCRIPT.md` | GatewayHacks 2026 submission write-up and demo walkthrough. |
-| `assets/architecture.png` | Architecture diagram (+ interactive HTML version). |
+| `assets/architecture.png` | Original architecture diagram (+ interactive HTML version in `assets/`). |
 
 ## Limitations
 
@@ -94,4 +101,4 @@ MIT — see [LICENSE](LICENSE). Free to use, free to audit, free to roast.
 
 ---
 
-*Built by ONAR-77 for GatewayHacks 2026. Receipts > vibes.*
+*Worked from the edge of the bed. → [studiopinggirkasur.xyz](https://studiopinggirkasur.xyz/)*

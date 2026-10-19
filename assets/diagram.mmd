@@ -1,11 +1,28 @@
 flowchart LR
-    U["claim + up to 5 URLs<br/>browser UI · POST /api/inspect · MCP"] --> R["risk scan<br/>guaranteed-return lang · wallet asks · links"]
-    R --> F["fetch sources<br/>private-IP block · IP pinned<br/>10s timeout · no redirects"]
-    F --> L["evidence ledger<br/>claim terms → matching excerpt<br/>sourced / unmatched"]
-    L --> C["cross-source compare<br/>corroborated · single-source<br/>conflicting · unsupported"]
-    C --> V{"verdict"}
-    V -->|flags hit| A["REVIEW_BEFORE_ACTING"]
-    V -->|no proof| B["INSUFFICIENT_EVIDENCE"]
-    A --> P["persist report<br/>data/reports.json"]
+    subgraph IN['clients']
+        U['browser UI on /<br/>POST /api/inspect curl<br/>MCP stdio: tools/call']
+    end
+    subgraph SV['server.js']
+        G['guardrails<br/>10 req/min per IP · 3 concurrent<br/>1 MB body · 30s timeout']
+        R['inspectClaim risk scan<br/>unrealistic-return language<br/>wallet and seed-phrase asks · links']
+    end
+    subgraph EV['evidence.js']
+        F['fetch up to 5 sources<br/>private-IP block + IP pinning<br/>no redirects · 10s · 5 MB cap']
+        X['extractEvidence<br/>title + readable text']
+        L['evidence ledger<br/>claim terms to matching sentence<br/>sourced / unmatched']
+        C['compareEvidence<br/>corroborated · single-source<br/>conflicting · unsupported']
+    end
+    subgraph RP['reports.js']
+        P['persist report<br/>16-hex id · atomic write<br/>data/reports.json · FIFO 500']
+    end
+    U --> G --> R
+    R -->|up to 5 URLs| F --> X --> L
+    L --> C
+    R --> V{'verdict'}
+    C --> V
+    V -->|risk flags hit| A['REVIEW_BEFORE_ACTING']
+    V -->|no proof of claim| B['INSUFFICIENT_EVIDENCE']
+    A --> P
     B --> P
-    P --> H["/report/&lt;id&gt; JSON<br/>?format=html shareable receipt"]
+    P --> H['shareable receipt<br/>/report/16-hex-id JSON<br/>?format=html']
+    P -.->|same engine: inspect_claim,<br/>create_trust_report| M['mcp-server.js stdio<br/>agents vet claims too']
