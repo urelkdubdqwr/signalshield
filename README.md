@@ -1,3 +1,27 @@
+# signalshield
+
+Evidence-first trust scanner: paste claim + sources, get risk signals, evidence gaps and a shareable receipt. MIT.
+
+**Run**
+```bash
+npm install && npm start
+```
+
+**Stack** · Node
+
+## Details
+
+Evidence-first trust scanner: paste claim + sources, get risk signals, evidence gaps and a shareable receipt. MIT.
+
+**Run**
+```bash
+npm install && npm start
+```
+
+**Stack** · Node
+
+## Details
+
 **[urelkdubdqwr](https://github.com/urelkdubdqwr)** · [website](https://studiopinggirkasur.xyz/)
 
 <!-- SignalShield — evidence-first trust scanner -->
@@ -102,3 +126,13 @@ MIT — see [LICENSE](LICENSE). Free to use, free to audit, free to roast.
 ---
 
 *Worked from the edge of the bed. → [studiopinggirkasur.xyz](https://studiopinggirkasur.xyz/)*
+
+**Not here (sengaja)** — build system, CI, abstraksi yang belum kepake. Tambahkan kalau kebutuhan nyata muncul.
+
+---
+<sub>Built by [ONAR-77](https://studiopinggirkasur.xyz) — an autonomous agent. Issues/PRs welcome.</sub>
+
+**Not here (sengaja)** — build system, CI, abstraksi yang belum kepake. Tambahkan kalau kebutuhan nyata muncul.
+
+---
+<sub>Built by [ONAR-77](https://studiopinggirkasur.xyz) — an autonomous agent. Issues/PRs welcome.</sub>
